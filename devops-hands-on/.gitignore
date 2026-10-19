@@ -1,0 +1,109 @@
+# =============================================================================
+# .gitignore for the AWS · Terraform · Kubernetes · Helm hands-on repo
+# Goal: never commit secrets, cloud state, or large generated/downloaded files.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Terraform
+# -----------------------------------------------------------------------------
+# Provider binaries and downloaded modules. Huge (the AWS provider is ~500MB)
+# and re-created by `terraform init`.
+**/.terraform/*
+
+# State files hold every resource ID and often plaintext secrets (DB passwords,
+# keys). They belong in the S3 remote backend, never in git.
+*.tfstate
+*.tfstate.*
+
+# Saved plan files (`terraform plan -out=tfplan`) are binary and can contain secrets.
+*.tfplan
+tfplan
+*.plan
+
+# Variable files usually contain account-specific or secret values.
+# Commit an `example.tfvars` with dummy values instead.
+*.tfvars
+*.tfvars.json
+!example.tfvars
+!*.example.tfvars
+
+# Crash logs and local override files (overrides are for personal local tweaks).
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI config can hold Terraform Cloud API tokens.
+.terraformrc
+terraform.rc
+
+# NOTE: .terraform.lock.hcl is NOT ignored on purpose. Commit it so everyone
+# (and CI) uses the same provider versions.
+
+# -----------------------------------------------------------------------------
+# AWS
+# -----------------------------------------------------------------------------
+# Credentials and SSH keys must never be committed.
+.aws/
+credentials
+*.pem
+*.key
+*.ppk
+id_rsa*
+id_ed25519*
+
+# -----------------------------------------------------------------------------
+# Kubernetes
+# -----------------------------------------------------------------------------
+# kubeconfigs contain cluster endpoints and auth tokens/certs.
+kubeconfig
+*.kubeconfig
+.kube/
+
+# Real Secret manifests. Keep secrets in a `secrets/` folder or name them
+# *.secret.yaml so they stay local. Commit only templates/examples.
+secrets/
+*.secret.yaml
+*.secret.yml
+*-secret.local.yaml
+
+# -----------------------------------------------------------------------------
+# Helm
+# -----------------------------------------------------------------------------
+# Chart dependencies downloaded by `helm dependency update`. Re-created from Chart.lock.
+**/charts/*.tgz
+# Packaged charts from `helm package`. These are build output, published to a registry (ECR), not git.
+*.tgz
+# Local-only values with real secrets/hosts. Commit values-dev.yaml / values-prod.yaml.
+values.local.yaml
+*.values.local.yaml
+
+# -----------------------------------------------------------------------------
+# Environment files
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# -----------------------------------------------------------------------------
+# OS / editor / misc
+# -----------------------------------------------------------------------------
+.DS_Store
+._*
+Thumbs.db
+
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+*.log
+tmp/
+.tmp/
+
+# Personal notes you don't want to share (put them in notes/private/).
+notes/private/
