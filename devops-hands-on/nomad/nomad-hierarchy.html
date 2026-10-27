@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nomad hierarchy</title>
+<style>
+  :root {
+    --bg: #ffffff; --text: #2c2c2a; --muted: #5f5e5a; --outline: #b4b2a9;
+    --gray-fill: #f1efe8; --gray-stroke: #888780; --gray-title: #444441; --gray-sub: #5f5e5a;
+    --teal-fill: #e1f5ee; --teal-stroke: #0f6e56; --teal-title: #085041; --teal-sub: #0f6e56;
+    --purple-fill: #eeedfe; --purple-stroke: #534ab7; --purple-title: #3c3489; --purple-sub: #534ab7;
+    --link: #d85a30;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1f1e1d; --text: #f1efe8; --muted: #b4b2a9; --outline: #5f5e5a;
+      --gray-fill: #2c2c2a; --gray-stroke: #888780; --gray-title: #f1efe8; --gray-sub: #b4b2a9;
+      --teal-fill: #04342c; --teal-stroke: #5dcaa5; --teal-title: #e1f5ee; --teal-sub: #9fe1cb;
+      --purple-fill: #26215c; --purple-stroke: #afa9ec; --purple-title: #eeedfe; --purple-sub: #cecbf6;
+      --link: #f0997b;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1f1e1d; --text: #f1efe8; --muted: #b4b2a9; --outline: #5f5e5a;
+    --gray-fill: #2c2c2a; --gray-stroke: #888780; --gray-title: #f1efe8; --gray-sub: #b4b2a9;
+    --teal-fill: #04342c; --teal-stroke: #5dcaa5; --teal-title: #e1f5ee; --teal-sub: #9fe1cb;
+    --purple-fill: #26215c; --purple-stroke: #afa9ec; --purple-title: #eeedfe; --purple-sub: #cecbf6;
+    --link: #f0997b;
+  }
+  body { margin: 0; padding: 24px 16px; background: var(--bg); color: var(--text);
+         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 500; margin: 0 0 4px; }
+  p { color: var(--muted); margin: 0 0 16px; font-size: 14px; line-height: 1.6; }
+  svg { width: 100%; height: auto; display: block; }
+  svg text { font-family: inherit; }
+  .t { font-size: 14px; font-weight: 500; }
+  .s { font-size: 12px; }
+  .plain .t { fill: var(--text); } .plain .s { fill: var(--muted); }
+  .gray rect { fill: var(--gray-fill); stroke: var(--gray-stroke); }
+  .gray .t { fill: var(--gray-title); } .gray .s { fill: var(--gray-sub); }
+  .teal rect { fill: var(--teal-fill); stroke: var(--teal-stroke); }
+  .teal .t { fill: var(--teal-title); } .teal .s { fill: var(--teal-sub); }
+  .purple rect { fill: var(--purple-fill); stroke: var(--purple-stroke); }
+  .purple .t { fill: var(--purple-title); } .purple .s { fill: var(--purple-sub); }
+  .arr { stroke: var(--muted); stroke-width: 1.5; fill: none; }
+  .place { stroke: var(--link); stroke-width: 1.75; fill: none; }
+  rect { stroke-width: 0.75; }
+  .c { text-anchor: middle; dominant-baseline: central; }
+  .m { dominant-baseline: central; }
+  .e { text-anchor: end; dominant-baseline: central; }
+</style>
+</head>
+<body>
+<main>
+<h1>Nomad hierarchy</h1>
+<p>Infrastructure view (where things run) beside the workload view (what you submit). Both live inside one region; an allocation is placed on a client node.</p>
+
+<svg viewBox="0 0 680 720" role="img" aria-labelledby="svg-title svg-desc">
+<title id="svg-title">HashiCorp Nomad hierarchy</title>
+<desc id="svg-desc">A federation contains a region with Nomad servers, Consul and Vault. Inside the region, the infrastructure view (datacenter, node pools, client nodes) sits beside the workload view (namespace, job, task group, allocation, tasks). An arrow places the allocation on a client node. A bottom row shows job change, evaluation, allocations and deployment.</desc>
+<defs>
+  <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+    <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </marker>
+</defs>
+
+<!-- Federation -->
+<rect x="20" y="20" width="640" height="650" rx="20" fill="none" stroke="var(--outline)" stroke-width="1" stroke-dasharray="6 4"/>
+<g class="plain">
+  <text class="t" x="36" y="42">Federation</text>
+  <text class="s" x="116" y="42">optional · joins several regions</text>
+</g>
+
+<!-- Region and its supporting pieces -->
+<g class="gray">
+  <rect x="36" y="52" width="608" height="602" rx="16"/>
+  <text class="t" x="52" y="74">Region</text>
+  <text class="s" x="110" y="74">one control plane · no shared state · k8s ≈ cluster</text>
+</g>
+<g class="gray">
+  <rect x="52" y="88" width="176" height="48" rx="8"/>
+  <text class="t c" x="140" y="104">Nomad servers</text>
+  <text class="s c" x="140" y="122">3 or 5 · Raft, scheduler</text>
+</g>
+<g class="gray">
+  <rect x="252" y="88" width="176" height="48" rx="8" stroke-dasharray="4 3"/>
+  <text class="t c" x="340" y="104">Consul (optional)</text>
+  <text class="s c" x="340" y="122">Service discovery</text>
+</g>
+<g class="gray">
+  <rect x="452" y="88" width="176" height="48" rx="8" stroke-dasharray="4 3"/>
+  <text class="t c" x="540" y="104">Vault (optional)</text>
+  <text class="s c" x="540" y="122">Secrets</text>
+</g>
+
+<!-- Infrastructure view -->
+<g class="teal">
+  <rect x="52" y="156" width="248" height="410" rx="12"/>
+  <text class="t" x="66" y="176">Datacenter “dc1”</text>
+  <text class="s" x="66" y="193">Label on nodes; jobs pick</text>
+</g>
+<g class="teal">
+  <rect x="64" y="206" width="224" height="194" rx="10"/>
+  <text class="t" x="78" y="226">Node pool “default”</text>
+  <text class="s" x="78" y="243">Group of client nodes</text>
+</g>
+<g class="teal">
+  <rect x="76" y="256" width="200" height="56" rx="8"/>
+  <text class="t c" x="176" y="274">Client node A</text>
+  <text class="s c" x="176" y="294">Drivers, cpu, memory</text>
+</g>
+<g class="teal">
+  <rect x="76" y="328" width="200" height="56" rx="8"/>
+  <text class="t c" x="176" y="346">Client node B</text>
+  <text class="s c" x="176" y="366">docker, exec, java</text>
+</g>
+<g class="teal">
+  <rect x="64" y="416" width="224" height="138" rx="10"/>
+  <text class="t" x="78" y="436">Node pool “gpu”</text>
+  <text class="s" x="78" y="453">Targeted by job</text>
+</g>
+<g class="teal">
+  <rect x="76" y="470" width="200" height="56" rx="8"/>
+  <text class="t c" x="176" y="488">Client node C</text>
+  <text class="s c" x="176" y="508">GPU machine</text>
+</g>
+
+<!-- Workload view -->
+<g class="purple">
+  <rect x="320" y="156" width="308" height="410" rx="12"/>
+  <text class="t" x="334" y="176">Namespace “ci”</text>
+  <text class="s" x="334" y="193">Teams, envs · k8s = Namespace</text>
+</g>
+<g class="purple">
+  <rect x="332" y="206" width="284" height="348" rx="10"/>
+  <text class="t" x="346" y="226">Job “acceptance”</text>
+  <text class="s" x="346" y="243">HCL spec · k8s ≈ Deployment/Job</text>
+</g>
+<g class="purple">
+  <rect x="344" y="256" width="260" height="286" rx="8"/>
+  <text class="t" x="358" y="276">Task group “env”</text>
+  <text class="s" x="358" y="293">count, shared net · k8s ≈ Pod spec</text>
+</g>
+<g class="purple">
+  <rect x="356" y="306" width="236" height="224" rx="8"/>
+  <text class="t" x="370" y="326">Allocation 3f2a91c4</text>
+  <text class="s" x="370" y="343">One node · k8s ≈ Pod</text>
+  <text class="s" x="370" y="364">Tasks · k8s ≈ container</text>
+</g>
+<g class="purple">
+  <rect x="368" y="374" width="212" height="24" rx="4"/>
+  <text class="t m" x="378" y="386">postgres</text><text class="s e" x="570" y="386">prestart sidecar</text>
+</g>
+<g class="purple">
+  <rect x="368" y="404" width="212" height="24" rx="4"/>
+  <text class="t m" x="378" y="416">kafka</text><text class="s e" x="570" y="416">prestart sidecar</text>
+</g>
+<g class="purple">
+  <rect x="368" y="434" width="212" height="24" rx="4"/>
+  <text class="t m" x="378" y="446">wait-for-deps</text><text class="s e" x="570" y="446">prestart</text>
+</g>
+<g class="purple">
+  <rect x="368" y="464" width="212" height="24" rx="4"/>
+  <text class="t m" x="378" y="476">service</text><text class="s e" x="570" y="476">poststart sidecar</text>
+</g>
+<g class="purple">
+  <rect x="368" y="494" width="212" height="24" rx="4" style="stroke-width:1.75"/>
+  <text class="t m" x="378" y="506">tests</text><text class="s e" x="570" y="506">main</text>
+</g>
+
+<!-- Allocation is placed on a client node -->
+<path class="place" d="M354 330 L310 330 L310 284 L280 284" marker-end="url(#arrow)"/>
+
+<!-- Evaluation → deployment lifecycle -->
+<g class="gray">
+  <rect x="52" y="586" width="129" height="52" rx="8"/>
+  <text class="t c" x="116" y="603">Job change</text>
+  <text class="s c" x="116" y="622">Submit or update</text>
+</g>
+<g class="gray">
+  <rect x="201" y="586" width="129" height="52" rx="8"/>
+  <text class="t c" x="265" y="603">Evaluation</text>
+  <text class="s c" x="265" y="622">Scheduler decides</text>
+</g>
+<g class="gray">
+  <rect x="350" y="586" width="129" height="52" rx="8"/>
+  <text class="t c" x="414" y="603">Allocations</text>
+  <text class="s c" x="414" y="622">Placed on nodes</text>
+</g>
+<g class="gray">
+  <rect x="499" y="586" width="129" height="52" rx="8"/>
+  <text class="t c" x="563" y="603">Deployment</text>
+  <text class="s c" x="563" y="622">Service rollouts</text>
+</g>
+<line class="arr" x1="183" y1="612" x2="199" y2="612" marker-end="url(#arrow)"/>
+<line class="arr" x1="332" y1="612" x2="348" y2="612" marker-end="url(#arrow)"/>
+<line class="arr" x1="481" y1="612" x2="497" y2="612" marker-end="url(#arrow)"/>
+
+<!-- Legend -->
+<g class="teal"><rect x="40" y="688" width="14" height="14" rx="3"/></g>
+<g class="purple"><rect x="180" y="688" width="14" height="14" rx="3"/></g>
+<g class="gray"><rect x="300" y="688" width="14" height="14" rx="3"/></g>
+<line class="place" x1="472" y1="695" x2="500" y2="695" marker-end="url(#arrow)"/>
+<g class="plain">
+  <text class="s" x="60" y="699">Infrastructure view</text>
+  <text class="s" x="200" y="699">Workload view</text>
+  <text class="s" x="320" y="699">Region-level / lifecycle</text>
+  <text class="s" x="508" y="699">Allocation placed on node</text>
+</g>
+</svg>
+</main>
+</body>
+</html>
