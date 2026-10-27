@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nomad org layout</title>
+<style>
+  :root {
+    --bg: #ffffff; --text: #2c2c2a; --muted: #6b6a64; --line: #d3d1c7;
+    --cp-fill: #f6f5f0; --cp-stroke: #b4b2a9; --cp-text: #444441;
+    --ns-fill: #f3f2fe; --ns-stroke: #7f77dd; --ns-text: #3c3489;
+    --job-fill: #fcf1ec; --job-stroke: #d85a30; --job-text: #712b13;
+    --infra-fill: #ecf8f3; --infra-stroke: #1d9e75; --infra-text: #085041;
+    --card: #ffffff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1c1b1a; --text: #f1efe8; --muted: #a8a69e; --line: #3d3c39;
+      --cp-fill: #252422; --cp-stroke: #5f5e5a; --cp-text: #e4e2da;
+      --ns-fill: #211d47; --ns-stroke: #8f88e6; --ns-text: #e1dffd;
+      --job-fill: #3a1d12; --job-stroke: #e0754d; --job-text: #fbe1d6;
+      --infra-fill: #0c2d25; --infra-stroke: #3dbb92; --infra-text: #d5f3e8;
+      --card: #2a2927;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1c1b1a; --text: #f1efe8; --muted: #a8a69e; --line: #3d3c39;
+    --cp-fill: #252422; --cp-stroke: #5f5e5a; --cp-text: #e4e2da;
+    --ns-fill: #211d47; --ns-stroke: #8f88e6; --ns-text: #e1dffd;
+    --job-fill: #3a1d12; --job-stroke: #e0754d; --job-text: #fbe1d6;
+    --infra-fill: #0c2d25; --infra-stroke: #3dbb92; --infra-text: #d5f3e8;
+    --card: #2a2927;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 16px 48px; background: var(--bg); color: var(--text);
+         font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 920px; margin: 0 auto; }
+  h1 { font-size: 22px; font-weight: 500; margin: 0 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 20px; }
+
+  .box { border: 1px solid; border-radius: 12px; padding: 14px; }
+  .label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 12px; }
+  .label b { font-weight: 500; font-size: 15px; }
+  .label span { font-size: 12px; opacity: .8; }
+  .label.bottom { margin: 12px 0 0; }
+
+  .cp { background: var(--cp-fill); border-color: var(--cp-stroke); color: var(--cp-text); }
+  .ns { background: var(--ns-fill); border-color: var(--ns-stroke); color: var(--ns-text); }
+  .job { background: var(--job-fill); border-color: var(--job-stroke); color: var(--job-text); }
+  .infra { background: var(--infra-fill); border-color: var(--infra-stroke); color: var(--infra-text); }
+  .more { background: transparent; border-style: dashed; }
+
+  .region { position: relative; border-radius: 18px; padding: 18px; }
+  .stack > * + * { margin-top: 16px; }
+
+  .tile { border: 1px solid; border-radius: 8px; padding: 8px 10px; text-align: center; }
+  .tile b { display: block; font-weight: 500; }
+  .tile small { display: block; font-size: 12px; opacity: .8; }
+  .tile.more { border-style: dashed; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+  .tile.focus { border-width: 2px; }
+
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .tasks { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; }
+  .tasks b { overflow-wrap: anywhere; }
+  .sub { font-size: 12px; opacity: .8; margin: 12px 0 8px; }
+  .envs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .env { border: 1px dashed var(--cp-stroke); border-radius: 12px; padding: 14px; }
+
+  .pools { display: grid; grid-template-columns: 3fr 1fr; gap: 12px; }
+  .pool { border: 1px dashed var(--infra-stroke); border-radius: 10px; padding: 12px; }
+  .pool .label { margin: 10px 0 0; justify-content: flex-end; }
+
+  .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
+  .wires path { fill: none; stroke: var(--job-stroke); stroke-width: 1.75; }
+  .wires marker path { fill: none; stroke: var(--job-stroke); stroke-width: 1.5; }
+
+  .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+  .note { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .note h2 { font-size: 15px; font-weight: 500; margin: 0 0 8px; }
+  .note ul { margin: 0; padding-left: 18px; }
+  .note li + li { margin-top: 2px; }
+  .note table { border-collapse: collapse; width: 100%; }
+  .note td { padding: 3px 0; border-bottom: 1px solid var(--line); }
+  .note tr:last-child td { border-bottom: 0; }
+  .note td:last-child { text-align: right; color: var(--muted); }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 12px; color: var(--muted); margin-bottom: 14px; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border: 1px solid; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
+  .legend .wire { width: 20px; height: 0; border: 0; border-top: 2px solid var(--job-stroke); border-radius: 0; vertical-align: 3px; }
+
+  @media (max-width: 640px) {
+    .envs, .notes { grid-template-columns: 1fr; }
+    .grid4 { grid-template-columns: repeat(2, 1fr); }
+    .tasks { grid-template-columns: repeat(3, 1fr); }
+    .tasks > :first-child { grid-column: 1 / -1; }
+    .pools { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Nomad at organisation scale</h1>
+  <p class="lede">~600 services per environment, ~55 teams. Test and demo share one region and are split only by namespace name.</p>
+
+  <div class="legend">
+    <span><i class="cp"></i>Control plane</span>
+    <span><i class="ns"></i>Namespaces (teams)</span>
+    <span><i class="job"></i>Jobs / workloads</span>
+    <span><i class="infra"></i>Infrastructure</span>
+    <span><i class="wire"></i>Allocation placed on node</span>
+  </div>
+
+  <section class="box cp region stack" id="region">
+    <div class="label"><b>Region</b><span>one control plane · Raft · k8s ≈ cluster</span></div>
+
+    <div class="grid3">
+      <div class="tile cp"><b>Nomad servers</b><small>3 or 5 · scheduler, state</small></div>
+      <div class="tile cp"><b>Consul</b><small>Service discovery</small></div>
+      <div class="tile cp"><b>Vault</b><small>Secrets</small></div>
+    </div>
+
+    <div class="envs">
+      <div class="env">
+        <div class="label"><b>Environment: test</b><span>suffix “-test”</span></div>
+        <div class="grid2">
+          <div class="tile ns focus"><b>payments-test</b><small>~12 jobs · see below</small></div>
+          <div class="tile ns"><b>catalogue-test</b><small>~11 jobs</small></div>
+          <div class="tile ns"><b>identity-test</b><small>~10 jobs</small></div>
+          <div class="tile ns more">… ~55 more</div>
+        </div>
+      </div>
+      <div class="env">
+        <div class="label"><b>Environment: demo</b><span>suffix “-demo”</span></div>
+        <div class="grid2">
+          <div class="tile ns"><b>payments-demo</b><small>~12 jobs</small></div>
+          <div class="tile ns"><b>catalogue-demo</b><small>~11 jobs</small></div>
+          <div class="tile ns"><b>identity-demo</b><small>~10 jobs</small></div>
+          <div class="tile ns more">… ~55 more</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box ns">
+      <div class="label"><b>Namespace “payments-test”</b><span>one team · ACL policy · variables · quota</span></div>
+      <div class="grid4">
+        <div class="tile job focus"><b>payment-api</b><small>expanded below</small></div>
+        <div class="tile job"><b>ledger</b><small>job</small></div>
+        <div class="tile job"><b>refunds-worker</b><small>job</small></div>
+        <div class="tile job more">… ~9 more</div>
+      </div>
+      <div class="box job" style="margin-top:12px">
+        <div class="label"><b>Job “payment-api”</b><span>type service · k8s ≈ Deployment</span></div>
+        <div class="box job more">
+          <div class="label"><b>Task group “api”</b><span>count 3 · 4 tasks on docker · k8s ≈ Pod template</span></div>
+          <div class="tasks">
+            <div class="tile job focus"><b>payments-service-acceptance-test</b><small>main task</small></div>
+            <div class="tile job"><b>psql</b><small>prestart sidecar</small></div>
+            <div class="tile job"><b>kafka</b><small>prestart sidecar</small></div>
+            <div class="tile job"><b>service</b><small>poststart sidecar</small></div>
+          </div>
+          <div class="sub">Each allocation runs all four tasks together · k8s ≈ Pod</div>
+          <div class="grid3">
+            <div class="tile job alloc"><b>alloc 1</b><small>4 tasks</small></div>
+            <div class="tile job alloc"><b>alloc 2</b><small>4 tasks</small></div>
+            <div class="tile job alloc"><b>alloc 3</b><small>4 tasks</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box infra">
+      <div class="pools">
+        <div class="pool">
+          <div class="grid4">
+            <div class="tile infra node"><b>node 1</b><small>docker</small></div>
+            <div class="tile infra node"><b>node 2</b><small>docker</small></div>
+            <div class="tile infra node"><b>node 3</b><small>docker</small></div>
+            <div class="tile infra more">…</div>
+          </div>
+          <div class="label"><b>Node pool “default”</b></div>
+        </div>
+        <div class="pool">
+          <div class="tile infra"><b>gpu node</b><small>docker</small></div>
+          <div class="label"><b>Node pool “gpu”</b></div>
+        </div>
+      </div>
+      <div class="label bottom"><b>Datacenter “dc1”</b><span>test and demo can share nodes unless node pools or constraints keep them apart</span></div>
+    </div>
+
+    <svg class="wires" id="wires" aria-hidden="true">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M2 1L8 5L2 9" stroke-linecap="round" stroke-linejoin="round"/>
+        </marker>
+      </defs>
+    </svg>
+  </section>
+
+  <section class="notes">
+    <div class="note">
+      <h2>Why a namespace per team</h2>
+      <ul>
+        <li>One ACL policy per team</li>
+        <li>Shared config within a domain</li>
+        <li>Quota and cost per team</li>
+        <li>On-call scope by namespace</li>
+        <li>~55 namespaces per env, not ~600</li>
+        <li>Namespaces, ACLs and quotas managed in Terraform</li>
+      </ul>
+    </div>
+    <div class="note">
+      <h2>Kubernetes equivalents</h2>
+      <table>
+        <tr><td>Region</td><td>≈ Cluster</td></tr>
+        <tr><td>Namespace</td><td>= Namespace</td></tr>
+        <tr><td>Job</td><td>≈ Deployment</td></tr>
+        <tr><td>Task group</td><td>≈ Pod template</td></tr>
+        <tr><td>Allocation</td><td>≈ Pod</td></tr>
+        <tr><td>Task</td><td>≈ Container</td></tr>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+  // Draw a curved wire from each allocation down to the client node it is placed on.
+  const region = document.getElementById('region');
+  const svg = document.getElementById('wires');
+  const allocs = [...region.querySelectorAll('.alloc')];
+  const nodes = [...region.querySelectorAll('.node')];
+
+  function draw() {
+    svg.querySelectorAll('path.wire').forEach(p => p.remove());
+    const r = region.getBoundingClientRect();
+    allocs.forEach((a, i) => {
+      const n = nodes[i];
+      if (!n) return;
+      const ar = a.getBoundingClientRect(), nr = n.getBoundingClientRect();
+      const x1 = ar.left + ar.width / 2 - r.left, y1 = ar.bottom - r.top + 2;
+      const x2 = nr.left + nr.width / 2 - r.left, y2 = nr.top - r.top - 3;
+      const ym = (y1 + y2) / 2;
+      const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      p.setAttribute('class', 'wire');
+      p.setAttribute('d', `M${x1} ${y1} C${x1} ${ym}, ${x2} ${ym}, ${x2} ${y2}`);
+      p.setAttribute('marker-end', 'url(#arrow)');
+      svg.appendChild(p);
+    });
+  }
+
+  draw();
+  new ResizeObserver(draw).observe(region);
+  document.fonts && document.fonts.ready.then(draw);
+</script>
+</body>
+</html>
