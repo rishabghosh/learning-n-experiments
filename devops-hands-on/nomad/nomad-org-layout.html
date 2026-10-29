@@ -6,7 +6,7 @@
 <title>Nomad org layout</title>
 <style>
   :root {
-    --bg: #ffffff; --text: #2c2c2a; --muted: #6b6a64; --line: #d3d1c7;
+    --bg: #ffffff; --text: #2c2c2a; --muted: #6b6a64; --line: #d3d1c7; --focus: #378add;
     --cp-fill: #f6f5f0; --cp-stroke: #b4b2a9; --cp-text: #444441;
     --ns-fill: #f3f2fe; --ns-stroke: #7f77dd; --ns-text: #3c3489;
     --job-fill: #fcf1ec; --job-stroke: #d85a30; --job-text: #712b13;
@@ -15,7 +15,7 @@
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #1c1b1a; --text: #f1efe8; --muted: #a8a69e; --line: #3d3c39;
+      --bg: #1c1b1a; --text: #f1efe8; --muted: #a8a69e; --line: #3d3c39; --focus: #85b7eb;
       --cp-fill: #252422; --cp-stroke: #5f5e5a; --cp-text: #e4e2da;
       --ns-fill: #211d47; --ns-stroke: #8f88e6; --ns-text: #e1dffd;
       --job-fill: #3a1d12; --job-stroke: #e0754d; --job-text: #fbe1d6;
@@ -24,7 +24,7 @@
     }
   }
   :root[data-theme="dark"] {
-    --bg: #1c1b1a; --text: #f1efe8; --muted: #a8a69e; --line: #3d3c39;
+    --bg: #1c1b1a; --text: #f1efe8; --muted: #a8a69e; --line: #3d3c39; --focus: #85b7eb;
     --cp-fill: #252422; --cp-stroke: #5f5e5a; --cp-text: #e4e2da;
     --ns-fill: #211d47; --ns-stroke: #8f88e6; --ns-text: #e1dffd;
     --job-fill: #3a1d12; --job-stroke: #e0754d; --job-text: #fbe1d6;
@@ -34,9 +34,11 @@
   * { box-sizing: border-box; }
   body { margin: 0; padding: 32px 16px 48px; background: var(--bg); color: var(--text);
          font: 14px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
-  main { max-width: 920px; margin: 0 auto; }
+  main { max-width: 1240px; margin: 0 auto; }
   h1 { font-size: 22px; font-weight: 500; margin: 0 0 4px; }
   .lede { color: var(--muted); margin: 0 0 20px; }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 20px; align-items: start; }
 
   .box { border: 1px solid; border-radius: 12px; padding: 14px; }
   .label { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 12px; }
@@ -54,16 +56,15 @@
   .stack > * + * { margin-top: 16px; }
 
   .tile { border: 1px solid; border-radius: 8px; padding: 8px 10px; text-align: center; }
-  .tile b { display: block; font-weight: 500; }
+  .tile b { display: block; font-weight: 500; overflow-wrap: anywhere; }
   .tile small { display: block; font-size: 12px; opacity: .8; }
   .tile.more { border-style: dashed; display: flex; align-items: center; justify-content: center; font-size: 12px; }
-  .tile.focus { border-width: 2px; }
 
   .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
   .grid2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-  .tasks { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 10px; }
-  .tasks b { overflow-wrap: anywhere; }
+  .tasks, .allocs { display: grid; gap: 10px; }
+  .hint { font-size: 12px; opacity: .8; margin: -4px 0 10px; }
   .sub { font-size: 12px; opacity: .8; margin: 12px 0 8px; }
   .envs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .env { border: 1px dashed var(--cp-stroke); border-radius: 12px; padding: 14px; }
@@ -72,9 +73,44 @@
   .pool { border: 1px dashed var(--infra-stroke); border-radius: 10px; padding: 12px; }
   .pool .label { margin: 10px 0 0; justify-content: flex-end; }
 
+  /* Anything with data-kind can be clicked to show it in the notes panel. */
+  [data-kind] { cursor: pointer; }
+  button.tile { font: inherit; transition: transform .12s; }
+  button.tile.job { color: var(--job-text); }
+  button.tile:hover { transform: translateY(-1px); }
+  button.tile:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+  button.pick[aria-pressed="true"] { border-width: 2px; padding: 7px 9px; }
+  button.pick[aria-pressed="true"] small::after { content: " · shown below"; }
+  .selected { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+  .node { transition: box-shadow .2s, opacity .2s; }
+  .node.idle { opacity: .45; }
+  .node.hit { box-shadow: 0 0 0 2px var(--job-stroke); }
+
   .wires { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
   .wires path { fill: none; stroke: var(--job-stroke); stroke-width: 1.75; }
   .wires marker path { fill: none; stroke: var(--job-stroke); stroke-width: 1.5; }
+
+  .inspector { position: sticky; top: 16px; max-height: calc(100vh - 32px); overflow: auto;
+               background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .inspector > header { display: flex; justify-content: space-between; align-items: baseline;
+                        border-bottom: 1px solid var(--line); padding-bottom: 8px; margin-bottom: 12px; }
+  .inspector > header b { font-weight: 500; font-size: 15px; }
+  .inspector > header span { font-size: 12px; color: var(--muted); }
+  .kind { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 999px; border: 1px solid; margin-bottom: 6px; }
+  .inspector h2 { font-size: 15px; font-weight: 500; margin: 0 0 4px; overflow-wrap: anywhere; }
+  .inspector .what { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+  .inspector h3 { font-size: 12px; font-weight: 500; color: var(--muted); margin: 14px 0 6px; }
+  .inspector dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; margin: 0; font-size: 13px; }
+  .inspector dt { color: var(--muted); }
+  .inspector dd { margin: 0; overflow-wrap: anywhere; }
+  .inspector dd.code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+  .path { list-style: none; margin: 0; padding: 0; font-size: 13px; }
+  .path li { padding-left: calc(var(--d) * 12px); }
+  .path li::before { content: "└ "; color: var(--muted); }
+  .path li:first-child::before { content: ""; }
+  .kids { margin: 0; padding-left: 18px; font-size: 13px; }
+  .none { font-size: 13px; color: var(--muted); margin: 0; }
 
   .notes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
   .note { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
@@ -90,10 +126,14 @@
   .legend i { display: inline-block; width: 12px; height: 12px; border: 1px solid; border-radius: 3px; vertical-align: -2px; margin-right: 6px; }
   .legend .wire { width: 20px; height: 0; border: 0; border-top: 2px solid var(--job-stroke); border-radius: 0; vertical-align: 3px; }
 
+  @media (max-width: 1000px) {
+    .layout { grid-template-columns: 1fr; }
+    .inspector { position: static; max-height: none; }
+  }
   @media (max-width: 640px) {
     .envs, .notes { grid-template-columns: 1fr; }
     .grid4 { grid-template-columns: repeat(2, 1fr); }
-    .tasks { grid-template-columns: repeat(3, 1fr); }
+    .tasks { grid-template-columns: repeat(2, 1fr) !important; }
     .tasks > :first-child { grid-column: 1 / -1; }
     .pools { grid-template-columns: 1fr; }
   }
@@ -102,7 +142,7 @@
 <body>
 <main>
   <h1>Nomad at organisation scale</h1>
-  <p class="lede">~600 services per environment, ~55 teams. Test and demo share one region and are split only by namespace name.</p>
+  <p class="lede">~600 services per environment, ~55 teams. Test and demo share one region and are split only by namespace name. Click anything to see it in the notes panel.</p>
 
   <div class="legend">
     <span><i class="cp"></i>Control plane</span>
@@ -112,77 +152,70 @@
     <span><i class="wire"></i>Allocation placed on node</span>
   </div>
 
-  <section class="box cp region stack" id="region">
+  <div class="layout">
+  <section class="box cp region stack" id="region" data-kind="region">
     <div class="label"><b>Region</b><span>one control plane · Raft · k8s ≈ cluster</span></div>
 
     <div class="grid3">
-      <div class="tile cp"><b>Nomad servers</b><small>3 or 5 · scheduler, state</small></div>
-      <div class="tile cp"><b>Consul</b><small>Service discovery</small></div>
-      <div class="tile cp"><b>Vault</b><small>Secrets</small></div>
+      <div class="tile cp" data-kind="servers"><b>Nomad servers</b><small>3 or 5 · scheduler, state</small></div>
+      <div class="tile cp" data-kind="consul"><b>Consul</b><small>Service discovery</small></div>
+      <div class="tile cp" data-kind="vault"><b>Vault</b><small>Secrets</small></div>
     </div>
 
     <div class="envs">
-      <div class="env">
+      <div class="env" data-kind="env" data-name="test">
         <div class="label"><b>Environment: test</b><span>suffix “-test”</span></div>
         <div class="grid2">
-          <div class="tile ns focus"><b>payments-test</b><small>~12 jobs · see below</small></div>
-          <div class="tile ns"><b>catalogue-test</b><small>~11 jobs</small></div>
-          <div class="tile ns"><b>identity-test</b><small>~10 jobs</small></div>
+          <div class="tile ns" data-kind="ns" data-name="payments-test"><b>payments-test</b><small>~12 jobs · see below</small></div>
+          <div class="tile ns" data-kind="ns" data-name="catalogue-test"><b>catalogue-test</b><small>~11 jobs</small></div>
+          <div class="tile ns" data-kind="ns" data-name="identity-test"><b>identity-test</b><small>~10 jobs</small></div>
           <div class="tile ns more">… ~55 more</div>
         </div>
       </div>
-      <div class="env">
+      <div class="env" data-kind="env" data-name="demo">
         <div class="label"><b>Environment: demo</b><span>suffix “-demo”</span></div>
         <div class="grid2">
-          <div class="tile ns"><b>payments-demo</b><small>~12 jobs</small></div>
-          <div class="tile ns"><b>catalogue-demo</b><small>~11 jobs</small></div>
-          <div class="tile ns"><b>identity-demo</b><small>~10 jobs</small></div>
+          <div class="tile ns" data-kind="ns" data-name="payments-demo"><b>payments-demo</b><small>~12 jobs</small></div>
+          <div class="tile ns" data-kind="ns" data-name="catalogue-demo"><b>catalogue-demo</b><small>~11 jobs</small></div>
+          <div class="tile ns" data-kind="ns" data-name="identity-demo"><b>identity-demo</b><small>~10 jobs</small></div>
           <div class="tile ns more">… ~55 more</div>
         </div>
       </div>
     </div>
 
-    <div class="box ns">
+    <div class="box ns" data-kind="ns" data-name="payments-test">
       <div class="label"><b>Namespace “payments-test”</b><span>one team · ACL policy · variables · quota</span></div>
-      <div class="grid4">
-        <div class="tile job focus"><b>payment-api</b><small>expanded below</small></div>
-        <div class="tile job"><b>ledger</b><small>job</small></div>
-        <div class="tile job"><b>refunds-worker</b><small>job</small></div>
+      <div class="hint">Click a job to expand it below.</div>
+      <div class="grid4" role="group" aria-label="Jobs in payments-test">
+        <button type="button" class="tile job pick" data-kind="job" data-name="payment-service-acceptance-test"><b>payment-service-acceptance-test</b><small>job</small></button>
+        <button type="button" class="tile job pick" data-kind="job" data-name="ledger"><b>ledger</b><small>job</small></button>
+        <button type="button" class="tile job pick" data-kind="job" data-name="refunds-worker"><b>refunds-worker</b><small>job</small></button>
         <div class="tile job more">… ~9 more</div>
       </div>
-      <div class="box job" style="margin-top:12px">
-        <div class="label"><b>Job “payment-api”</b><span>type service · k8s ≈ Deployment</span></div>
-        <div class="box job more">
-          <div class="label"><b>Task group “api”</b><span>count 3 · 4 tasks on docker · k8s ≈ Pod template</span></div>
-          <div class="tasks">
-            <div class="tile job focus"><b>payments-service-acceptance-test</b><small>main task</small></div>
-            <div class="tile job"><b>psql</b><small>prestart sidecar</small></div>
-            <div class="tile job"><b>kafka</b><small>prestart sidecar</small></div>
-            <div class="tile job"><b>service</b><small>poststart sidecar</small></div>
-          </div>
-          <div class="sub">Each allocation runs all four tasks together · k8s ≈ Pod</div>
-          <div class="grid3">
-            <div class="tile job alloc"><b>alloc 1</b><small>4 tasks</small></div>
-            <div class="tile job alloc"><b>alloc 2</b><small>4 tasks</small></div>
-            <div class="tile job alloc"><b>alloc 3</b><small>4 tasks</small></div>
-          </div>
+      <div class="box job" style="margin-top:12px" id="job-detail" data-kind="job">
+        <div class="label"><b id="job-name"></b><span id="job-meta"></span></div>
+        <div class="box job more" id="tg" data-kind="tg">
+          <div class="label"><b id="tg-name"></b><span id="tg-meta"></span></div>
+          <div class="tasks" id="tasks"></div>
+          <div class="sub" id="alloc-note"></div>
+          <div class="allocs" id="allocs"></div>
         </div>
       </div>
     </div>
 
-    <div class="box infra">
+    <div class="box infra" data-kind="dc">
       <div class="pools">
-        <div class="pool">
+        <div class="pool" data-kind="pool" data-name="default">
           <div class="grid4">
-            <div class="tile infra node"><b>node 1</b><small>docker</small></div>
-            <div class="tile infra node"><b>node 2</b><small>docker</small></div>
-            <div class="tile infra node"><b>node 3</b><small>docker</small></div>
+            <div class="tile infra node" data-kind="node" data-name="0"><b>node 1</b><small>docker</small></div>
+            <div class="tile infra node" data-kind="node" data-name="1"><b>node 2</b><small>docker</small></div>
+            <div class="tile infra node" data-kind="node" data-name="2"><b>node 3</b><small>docker</small></div>
             <div class="tile infra more">…</div>
           </div>
           <div class="label"><b>Node pool “default”</b></div>
         </div>
-        <div class="pool">
-          <div class="tile infra"><b>gpu node</b><small>docker</small></div>
+        <div class="pool" data-kind="pool" data-name="gpu">
+          <div class="tile infra" data-kind="node" data-name="gpu"><b>gpu node</b><small>docker</small></div>
           <div class="label"><b>Node pool “gpu”</b></div>
         </div>
       </div>
@@ -197,6 +230,12 @@
       </defs>
     </svg>
   </section>
+
+  <aside class="inspector" aria-live="polite">
+    <header><b>Notes</b><span>click anything on the left</span></header>
+    <div id="notes"></div>
+  </aside>
+  </div>
 
   <section class="notes">
     <div class="note">
@@ -225,17 +264,252 @@
 </main>
 
 <script>
-  // Draw a curved wire from each allocation down to the client node it is placed on.
-  const region = document.getElementById('region');
-  const svg = document.getElementById('wires');
-  const allocs = [...region.querySelectorAll('.alloc')];
-  const nodes = [...region.querySelectorAll('.node')];
+  // What each lifecycle hook means for when a task starts and stops.
+  const LIFECYCLE = {
+    'main task': 'Starts once prestart tasks are up. When it exits, the allocation is done.',
+    'prestart sidecar': 'Starts before the main task and keeps running alongside it.',
+    'prestart': 'Runs to completion before the main task starts.',
+    'poststart sidecar': 'Starts just after the main task starts and keeps running.',
+  };
 
+  // Example jobs in payments-test. Each task: [name, lifecycle, image, cpu MHz, memory MB, purpose].
+  // Each alloc: [id, client node index (0-based)].
+  const JOBS = {
+    'payment-service-acceptance-test': {
+      type: 'service', group: 'acceptance',
+      tasks: [
+        ['run-acceptance-tests', 'main task', 'payments/acceptance-tests:1.4.2', 500, 512, 'Runs the acceptance suite against payment-service.'],
+        ['payments-postgres', 'prestart sidecar', 'postgres:16', 500, 1024, 'Payments database for the test run.'],
+        ['payments-kafka', 'prestart sidecar', 'bitnami/kafka:3.7', 1000, 1536, 'Event broker for payment events.'],
+        ['payment-service', 'poststart sidecar', 'payments/payment-service:2.8.0', 750, 768, 'The service under test.'],
+      ],
+      allocs: [['a3f2c91d', 0]],
+    },
+    'ledger': {
+      type: 'service', group: 'ledger',
+      tasks: [
+        ['ledger-acceptance-test', 'main task', 'payments/ledger-tests:0.9.1', 500, 512, 'Runs the ledger acceptance suite.'],
+        ['psql', 'prestart sidecar', 'postgres:16', 500, 1024, 'Ledger database for the test run.'],
+        ['db-migrate', 'prestart', 'payments/ledger-migrations:0.9.1', 200, 256, 'Applies schema migrations, then exits.'],
+        ['service', 'poststart sidecar', 'payments/ledger:3.1.0', 750, 768, 'The ledger service under test.'],
+      ],
+      allocs: [['7be0d4a2', 1], ['c19e5f03', 2]],
+    },
+    'refunds-worker': {
+      type: 'service', group: 'worker',
+      tasks: [
+        ['refunds-worker-acceptance-test', 'main task', 'payments/refunds-tests:1.2.0', 500, 512, 'Runs the refunds acceptance suite.'],
+        ['kafka', 'prestart sidecar', 'bitnami/kafka:3.7', 1000, 1536, 'Event broker the worker consumes from.'],
+        ['service', 'poststart sidecar', 'payments/refunds-worker:1.6.3', 500, 512, 'The refunds worker under test.'],
+      ],
+      allocs: [['5d8a6e17', 0]],
+    },
+  };
+  const JOB_COUNT = { payments: 12, catalogue: 11, identity: 10 };
+
+  const $ = id => document.getElementById(id);
+  const region = $('region');
+  const svg = $('wires');
+  const nodes = [...region.querySelectorAll('.node')];
+  const picks = [...region.querySelectorAll('.pick')];
+  let jobName = null, job = null;
+
+  // ---- Notes panel: what each thing is, its parents and its children ----
+
+  const envOf = ns => ns.endsWith('-demo') ? 'demo' : 'test';
+  const nsParents = ns => ['Region', `Environment “${envOf(ns)}” (naming only)`];
+  const jobParents = () => [...nsParents('payments-test'), 'Namespace “payments-test”'];
+  const tgParents = () => [...jobParents(), `Job “${jobName}”`];
+  const taskParents = () => [...tgParents(), `Task group “${job.group}”`];
+  const sum = (i) => job.tasks.reduce((s, t) => s + t[i], 0);
+  const allocsOn = i => Object.entries(JOBS).flatMap(([n, j]) =>
+    j.allocs.filter(a => a[1] === i).map(a => `alloc ${a[0]} (${n})`));
+
+  function describe(kind, name) {
+    switch (kind) {
+      case 'region': return {
+        label: 'Region', title: 'Region', what: 'One Nomad control plane. Everything below lives in it; regions never share state.',
+        rows: [['Servers', '3 or 5, Raft consensus'], ['Federation', 'optional, joins regions'], ['k8s', 'Cluster']],
+        parents: ['Federation (optional)'],
+        children: ['Nomad servers', 'Consul', 'Vault', 'Namespaces (~58 per environment)', 'Datacenter “dc1”'] };
+      case 'servers': return {
+        label: 'Control plane', title: 'Nomad servers', what: 'Run the scheduler and API, and keep cluster state (jobs, allocations, ACLs) in Raft.',
+        rows: [['Count', '3 or 5 for quorum'], ['Holds', 'jobs, evals, allocs, ACLs'], ['k8s', 'control plane']],
+        parents: ['Region'], children: [] };
+      case 'consul': return {
+        label: 'Control plane', title: 'Consul', what: 'Service discovery and health checks. Tasks register services so others find them by name.',
+        rows: [['Used by', 'service blocks in jobs'], ['k8s', 'Service + DNS']],
+        parents: ['Region'], children: [] };
+      case 'vault': return {
+        label: 'Control plane', title: 'Vault', what: 'Secrets store. Tasks read secrets through template blocks.',
+        rows: [['Used by', 'vault + template blocks'], ['k8s', 'Secret']],
+        parents: ['Region'], children: [] };
+      case 'env': return {
+        label: 'Environment', title: `Environment “${name}”`,
+        what: 'Not a Nomad object. Just a naming convention: every namespace ends in the environment suffix.',
+        rows: [['Suffix', `-${name}`], ['Namespaces', '~58'], ['Shares', 'region, servers, nodes']],
+        parents: ['Region'],
+        children: [`payments-${name}`, `catalogue-${name}`, `identity-${name}`, '… ~55 more namespaces'] };
+      case 'ns': {
+        const team = name.split('-')[0];
+        return {
+          label: 'Namespace', title: `Namespace “${name}”`,
+          what: `Owned by the ${team} team. Holds its jobs, variables and ACL policy for the ${envOf(name)} environment.`,
+          rows: [['ACL policy', `${name}-deploy`], ['Variables', `nomad/jobs/* in ${name}`], ['Quota', `${name} (Enterprise)`],
+                 ['Managed in', 'Terraform'], ['CLI', `nomad job status -namespace=${name}`], ['k8s', 'Namespace']],
+          parents: nsParents(name),
+          children: name === 'payments-test'
+            ? [...Object.keys(JOBS).map(j => `Job “${j}”`), '… ~9 more jobs']
+            : [`~${JOB_COUNT[team]} jobs (not expanded here)`] };
+      }
+      case 'job': {
+        const j = JOBS[name];
+        return {
+          label: 'Job', title: `Job “${name}”`, what: 'The spec you submit (HCL). Nomad turns it into allocations via an evaluation.',
+          rows: [['Type', j.type], ['Namespace', 'payments-test'], ['Submit', `nomad job run ${name}.nomad.hcl`], ['k8s', 'Deployment']],
+          parents: jobParents(), children: [`Task group “${j.group}” (count ${j.allocs.length})`] };
+      }
+      case 'tg': return {
+        label: 'Task group', title: `Task group “${job.group}”`,
+        what: 'Tasks that must run together on one node, sharing a network and alloc dir. Each copy is an allocation.',
+        rows: [['Count', String(job.allocs.length)], ['Network', 'bridge, shared by tasks'],
+               ['Reserves', `cpu ${sum(3)} MHz · memory ${sum(4)} MB`], ['k8s', 'Pod template']],
+        parents: tgParents(),
+        children: [...job.tasks.map(t => `Task “${t[0]}” (${t[1]})`), ...job.allocs.map(a => `Allocation “${a[0]}”`)] };
+      case 'task': {
+        const [t, lifecycle, image, cpu, mem, purpose] = job.tasks[+name];
+        return {
+          label: 'Task', title: `Task “${t}”`, what: purpose,
+          rows: [['Lifecycle', `${lifecycle}: ${LIFECYCLE[lifecycle]}`], ['Driver', 'docker'], ['Image', image],
+                 ['Resources', `cpu ${cpu} MHz · memory ${mem} MB`], ['k8s', 'container']],
+          parents: taskParents(),
+          children: [], none: `Smallest unit. Runs inside ${job.allocs.map(a => a[0]).join(', ')}.` };
+      }
+      case 'alloc': {
+        const [id, node] = job.allocs[+name];
+        return {
+          label: 'Allocation', title: `Allocation “${id}”`,
+          what: `One running copy of task group “${job.group}”. All its tasks share this node, network and alloc dir.`,
+          rows: [['Node', `node ${node + 1} (pool “default”, dc1)`], ['Status', 'running'],
+                 ['Reserves', `cpu ${sum(3)} MHz · memory ${sum(4)} MB`], ['Inspect', `nomad alloc status ${id}`], ['k8s', 'Pod']],
+          parents: taskParents(), children: job.tasks.map(t => `Task “${t[0]}”`) };
+      }
+      case 'dc': return {
+        label: 'Datacenter', title: 'Datacenter “dc1”', what: 'A label on client nodes. Jobs list which datacenters they may run in.',
+        rows: [['Node pools', 'default, gpu'], ['Shared by', 'test and demo']],
+        parents: ['Region'], children: ['Node pool “default”', 'Node pool “gpu”'] };
+      case 'pool': return {
+        label: 'Node pool', title: `Node pool “${name}”`, what: 'A group of client nodes that a job can target.',
+        rows: [['Target with', `node_pool = "${name}"`]],
+        parents: ['Region', 'Datacenter “dc1”'],
+        children: name === 'gpu' ? ['gpu node'] : ['node 1', 'node 2', 'node 3', '… more nodes'] };
+      case 'node': {
+        const gpu = name === 'gpu';
+        return {
+          label: 'Client node', title: gpu ? 'gpu node' : `node ${+name + 1}`,
+          what: 'A machine running the Nomad client agent. It runs whatever allocations the scheduler places on it.',
+          rows: [['Agents', 'Nomad client, Consul'], ['Driver', 'docker'],
+                 ['Capacity', gpu ? 'cpu 32000 MHz · memory 65536 MB · 1 GPU' : 'cpu 16000 MHz · memory 32768 MB'], ['k8s', 'Node']],
+          parents: ['Region', 'Datacenter “dc1”', `Node pool “${gpu ? 'gpu' : 'default'}”`],
+          children: [...(gpu ? [] : allocsOn(+name)), 'Allocations from other namespaces', 'System jobs (logs, metrics)'] };
+      }
+    }
+  }
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function inspect(target) {
+    region.querySelectorAll('.selected').forEach(e => e.classList.remove('selected'));
+    target.classList.add('selected');
+    const d = describe(target.dataset.kind, target.dataset.name);
+    const out = $('notes');
+    out.replaceChildren();
+    out.append(el('span', `kind ${kindClass(target.dataset.kind)}`, d.label), el('h2', '', d.title), el('p', 'what', d.what));
+
+    const dl = el('dl');
+    const CODE = ['Image', 'CLI', 'Inspect', 'Submit', 'ACL policy', 'Variables', 'Quota', 'Target with'];
+    d.rows.forEach(([k, v]) => dl.append(el('dt', '', k), el('dd', CODE.includes(k) ? 'code' : '', v)));
+    out.append(dl);
+
+    out.append(el('h3', '', 'Parents'));
+    const path = el('ol', 'path');
+    [...d.parents, d.title].forEach((p, i) => {
+      const li = el('li', '', p);
+      li.style.setProperty('--d', i);
+      if (i === d.parents.length) li.style.fontWeight = 500;
+      path.append(li);
+    });
+    out.append(path);
+
+    out.append(el('h3', '', 'Children'));
+    if (d.children.length) {
+      const ul = el('ul', 'kids');
+      d.children.forEach(c => ul.append(el('li', '', c)));
+      out.append(ul);
+    } else {
+      out.append(el('p', 'none', d.none || 'None.'));
+    }
+  }
+
+  const kindClass = k => ({ job: 'job', tg: 'job', task: 'job', alloc: 'job', ns: 'ns',
+                            dc: 'infra', pool: 'infra', node: 'infra' })[k] || 'cp';
+
+  // ---- Expanded job: task group, tasks, allocations ----
+
+  function tile(name, note, kind, index, extra = '') {
+    const b = el('button', `tile job ${extra}`);
+    b.type = 'button';
+    b.dataset.kind = kind;
+    b.dataset.name = index;
+    b.append(el('b', '', name), el('small', '', note));
+    return b;
+  }
+
+  function select(name) {
+    jobName = name;
+    job = JOBS[name];
+    picks.forEach(p => p.setAttribute('aria-pressed', p.dataset.name === name));
+    $('job-detail').dataset.name = name;
+
+    const n = job.tasks.length, count = job.allocs.length;
+    $('job-name').textContent = `Job “${name}”`;
+    $('job-meta').textContent = `type ${job.type} · k8s ≈ Deployment`;
+    $('tg-name').textContent = `Task group “${job.group}”`;
+    $('tg-meta').textContent = `count ${count} · ${n} tasks on docker · k8s ≈ Pod template`;
+
+    const tasks = $('tasks');
+    tasks.style.gridTemplateColumns = `2fr repeat(${n - 1}, 1fr)`;
+    tasks.replaceChildren(...job.tasks.map((t, i) => tile(t[0], t[1], 'task', i)));
+
+    $('alloc-note').textContent = `Each allocation runs all ${n} tasks together on one node · k8s ≈ Pod`;
+    const allocs = $('allocs');
+    allocs.style.gridTemplateColumns = `repeat(${count}, 1fr)`;
+    allocs.replaceChildren(...job.allocs.map(([id, node], i) => {
+      const a = tile(`alloc ${id}`, `on node ${node + 1}`, 'alloc', i, 'alloc');
+      a.dataset.node = node;
+      return a;
+    }));
+
+    const used = job.allocs.map(a => a[1]);
+    nodes.forEach((e, i) => {
+      e.classList.toggle('hit', used.includes(i));
+      e.classList.toggle('idle', !used.includes(i));
+    });
+    draw();
+  }
+
+  // Draw a curved wire from each allocation down to the client node it is placed on.
   function draw() {
     svg.querySelectorAll('path.wire').forEach(p => p.remove());
+    if (!job) return;
     const r = region.getBoundingClientRect();
-    allocs.forEach((a, i) => {
-      const n = nodes[i];
+    region.querySelectorAll('.alloc').forEach(a => {
+      const n = nodes[+a.dataset.node];
       if (!n) return;
       const ar = a.getBoundingClientRect(), nr = n.getBoundingClientRect();
       const x1 = ar.left + ar.width / 2 - r.left, y1 = ar.bottom - r.top + 2;
@@ -249,7 +523,16 @@
     });
   }
 
-  draw();
+  // One click handler for the whole diagram: the innermost clickable thing wins.
+  region.addEventListener('click', e => {
+    const target = e.target.closest('[data-kind]');
+    if (!target) return;
+    if (target.classList.contains('pick')) select(target.dataset.name);
+    inspect(target);
+  });
+
+  select('payment-service-acceptance-test');
+  inspect(region.querySelector('#tasks [data-kind="task"]'));
   new ResizeObserver(draw).observe(region);
   document.fonts && document.fonts.ready.then(draw);
 </script>
