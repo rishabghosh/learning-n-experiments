@@ -66,6 +66,8 @@
   .tasks, .allocs { display: grid; gap: 10px; }
   .hint { font-size: 12px; opacity: .8; margin: -4px 0 10px; }
   .sub { font-size: 12px; opacity: .8; margin: 12px 0 8px; }
+  .tile small.res { margin-top: 4px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  .sim { font-size: 11px; font-style: italic; opacity: .75; margin: 6px 0 0; }
   .envs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .env { border: 1px dashed var(--cp-stroke); border-radius: 12px; padding: 14px; }
 
@@ -197,6 +199,7 @@
         <div class="box job more" id="tg" data-kind="tg">
           <div class="label"><b id="tg-name"></b><span id="tg-meta"></span></div>
           <div class="tasks" id="tasks"></div>
+          <div class="sim">CPU and memory figures are simulated examples, not from a real cluster.</div>
           <div class="sub" id="alloc-note"></div>
           <div class="allocs" id="allocs"></div>
         </div>
@@ -270,6 +273,7 @@
     'prestart sidecar': 'Starts before the main task and keeps running alongside it.',
     'prestart': 'Runs to completion before the main task starts.',
     'poststart sidecar': 'Starts just after the main task starts and keeps running.',
+    'long-running': 'No lifecycle block. Runs until stopped; Nomad restarts it if it exits.',
   };
 
   // Example jobs in payments-test. Each task: [name, lifecycle, image, cpu MHz, memory MB, purpose].
@@ -288,19 +292,14 @@
     'ledger': {
       type: 'service', group: 'ledger',
       tasks: [
-        ['ledger-acceptance-test', 'main task', 'payments/ledger-tests:0.9.1', 500, 512, 'Runs the ledger acceptance suite.'],
-        ['psql', 'prestart sidecar', 'postgres:16', 500, 1024, 'Ledger database for the test run.'],
-        ['db-migrate', 'prestart', 'payments/ledger-migrations:0.9.1', 200, 256, 'Applies schema migrations, then exits.'],
-        ['service', 'poststart sidecar', 'payments/ledger:3.1.0', 750, 768, 'The ledger service under test.'],
+        ['ledger-service', 'long-running', 'payments/ledger:3.1.0', 750, 768, 'Hosts the ledger API. A real service, not a test run.'],
       ],
       allocs: [['7be0d4a2', 1], ['c19e5f03', 2]],
     },
     'refunds-worker': {
       type: 'service', group: 'worker',
       tasks: [
-        ['refunds-worker-acceptance-test', 'main task', 'payments/refunds-tests:1.2.0', 500, 512, 'Runs the refunds acceptance suite.'],
-        ['kafka', 'prestart sidecar', 'bitnami/kafka:3.7', 1000, 1536, 'Event broker the worker consumes from.'],
-        ['service', 'poststart sidecar', 'payments/refunds-worker:1.6.3', 500, 512, 'The refunds worker under test.'],
+        ['refunds-worker', 'long-running', 'payments/refunds-worker:1.6.3', 500, 512, 'Consumes refund events and processes refunds. A real service, not a test run.'],
       ],
       allocs: [['5d8a6e17', 0]],
     },
@@ -373,7 +372,7 @@
         label: 'Task group', title: `Task group “${job.group}”`,
         what: 'Tasks that must run together on one node, sharing a network and alloc dir. Each copy is an allocation.',
         rows: [['Count', String(job.allocs.length)], ['Network', 'bridge, shared by tasks'],
-               ['Reserves', `cpu ${sum(3)} MHz · memory ${sum(4)} MB`], ['k8s', 'Pod template']],
+               ['Reserves (sim.)', `cpu ${sum(3)} MHz · memory ${sum(4)} MB`], ['k8s', 'Pod template']],
         parents: tgParents(),
         children: [...job.tasks.map(t => `Task “${t[0]}” (${t[1]})`), ...job.allocs.map(a => `Allocation “${a[0]}”`)] };
       case 'task': {
@@ -381,7 +380,7 @@
         return {
           label: 'Task', title: `Task “${t}”`, what: purpose,
           rows: [['Lifecycle', `${lifecycle}: ${LIFECYCLE[lifecycle]}`], ['Driver', 'docker'], ['Image', image],
-                 ['Resources', `cpu ${cpu} MHz · memory ${mem} MB`], ['k8s', 'container']],
+                 ['Resources (sim.)', `cpu ${cpu} MHz · memory ${mem} MB`], ['k8s', 'container']],
           parents: taskParents(),
           children: [], none: `Smallest unit. Runs inside ${job.allocs.map(a => a[0]).join(', ')}.` };
       }
@@ -391,7 +390,7 @@
           label: 'Allocation', title: `Allocation “${id}”`,
           what: `One running copy of task group “${job.group}”. All its tasks share this node, network and alloc dir.`,
           rows: [['Node', `node ${node + 1} (pool “default”, dc1)`], ['Status', 'running'],
-                 ['Reserves', `cpu ${sum(3)} MHz · memory ${sum(4)} MB`], ['Inspect', `nomad alloc status ${id}`], ['k8s', 'Pod']],
+                 ['Reserves (sim.)', `cpu ${sum(3)} MHz · memory ${sum(4)} MB`], ['Inspect', `nomad alloc status ${id}`], ['k8s', 'Pod']],
           parents: taskParents(), children: job.tasks.map(t => `Task “${t[0]}”`) };
       }
       case 'dc': return {
@@ -409,7 +408,7 @@
           label: 'Client node', title: gpu ? 'gpu node' : `node ${+name + 1}`,
           what: 'A machine running the Nomad client agent. It runs whatever allocations the scheduler places on it.',
           rows: [['Agents', 'Nomad client, Consul'], ['Driver', 'docker'],
-                 ['Capacity', gpu ? 'cpu 32000 MHz · memory 65536 MB · 1 GPU' : 'cpu 16000 MHz · memory 32768 MB'], ['k8s', 'Node']],
+                 ['Capacity (sim.)', gpu ? 'cpu 32000 MHz · memory 65536 MB · 1 GPU' : 'cpu 16000 MHz · memory 32768 MB'], ['k8s', 'Node']],
           parents: ['Region', 'Datacenter “dc1”', `Node pool “${gpu ? 'gpu' : 'default'}”`],
           children: [...(gpu ? [] : allocsOn(+name)), 'Allocations from other namespaces', 'System jobs (logs, metrics)'] };
       }
@@ -480,13 +479,19 @@
     $('job-name').textContent = `Job “${name}”`;
     $('job-meta').textContent = `type ${job.type} · k8s ≈ Deployment`;
     $('tg-name').textContent = `Task group “${job.group}”`;
-    $('tg-meta').textContent = `count ${count} · ${n} tasks on docker · k8s ≈ Pod template`;
+    $('tg-meta').textContent = `count ${count} · ${n} task${n > 1 ? 's' : ''} on docker · k8s ≈ Pod template`;
 
     const tasks = $('tasks');
-    tasks.style.gridTemplateColumns = `2fr repeat(${n - 1}, 1fr)`;
-    tasks.replaceChildren(...job.tasks.map((t, i) => tile(t[0], t[1], 'task', i)));
+    tasks.style.gridTemplateColumns = n > 1 ? `2fr repeat(${n - 1}, 1fr)` : '1fr';
+    tasks.replaceChildren(...job.tasks.map((t, i) => {
+      const b = tile(t[0], t[1], 'task', i);
+      b.append(el('small', 'res', `${t[3]} MHz · ${t[4]} MB`));
+      return b;
+    }));
 
-    $('alloc-note').textContent = `Each allocation runs all ${n} tasks together on one node · k8s ≈ Pod`;
+    $('alloc-note').textContent = n > 1
+      ? `Each allocation runs all ${n} tasks together on one node · k8s ≈ Pod`
+      : `Each allocation runs one copy of the task · k8s ≈ Pod`;
     const allocs = $('allocs');
     allocs.style.gridTemplateColumns = `repeat(${count}, 1fr)`;
     allocs.replaceChildren(...job.allocs.map(([id, node], i) => {
